@@ -2,7 +2,7 @@ use nom::{
     branch::alt, bytes::complete::tag, multi::length_data, number::complete::be_u32, IResult,
 };
 
-use crate::{meta, MidiEvent};
+use crate::{meta, parse_message_event, MidiEvent};
 
 fn take_track(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let (remainder, _) = tag("MTrk")(input)?;
@@ -12,9 +12,11 @@ fn take_track(input: &[u8]) -> IResult<&[u8], &[u8]> {
 
 pub fn parse_track(input: &[u8]) -> IResult<&[u8], Vec<MidiEvent>> {
     let (remainder, mut track) = take_track(input)?;
+    println!("Got Track!\nTrack:{:x?}", track);
     let mut track_events = Vec::new();
     while !track.is_empty() {
-        let (new_track, event) = alt((meta::parse_meta_event,))(track)?;
+        let (new_track, event) = alt((meta::parse_meta_event, parse_message_event))(track)?;
+        println!("Got Event\nEvent:{:x?}", event);
         track_events.push(event);
         track = new_track;
     }
