@@ -37,7 +37,6 @@ pub fn parse_header(input: &[u8]) -> IResult<&[u8], Header> {
     let (remainder, _) = header_chars(input)?;
     let (remainder, (length, format_type, tracks, division)) =
         tuple((length, format_type, ntrks, division))(remainder)?;
-    println!("division: {:?}", division);
     Ok((
         remainder,
         Header {

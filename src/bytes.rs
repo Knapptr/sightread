@@ -9,15 +9,24 @@ fn handle_7_bit(input: (&[u8], usize)) -> IResult<(&[u8], usize), (u8, bool)> {
         _ => unreachable!(),
     }
 }
-pub fn variable_length_7(input: &[u8]) -> IResult<&[u8], usize> {
-    let mut total = 0usize;
+pub fn variable_length_7(input: &[u8]) -> IResult<&[u8], u32> {
+    let mut total: u32 = 0;
     let (mut remainder, (add_total, mut finished)) = bits(handle_7_bit)(input)?;
-    total += add_total as usize;
+    total += add_total as u32;
     while !finished {
         let (new_remainder, (add_total, new_finished)) = bits(handle_7_bit)(remainder)?;
-        total += add_total as usize;
+        total = total << 7usize;
+        total = total | add_total as u32;
         remainder = new_remainder;
         finished = new_finished;
     }
     Ok((remainder, total))
+}
+
+#[cfg(test)]
+#[test]
+fn var_7() {
+    let var_bytes = [0x81, 0x00];
+    let expected = 0x00000080;
+    assert_eq!(expected, variable_length_7(&var_bytes).unwrap().1)
 }

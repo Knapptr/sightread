@@ -26,6 +26,7 @@ pub enum MetaEvent<'a> {
     TimeSignature((u8, u8, u8, u8)),
     KeySignature((u8, u8)),
     SequencerSpecific(&'a [u8]),
+    Port(&'a [u8]),
 }
 pub type MetaResult<'a> = IResult<&'a [u8], MetaEvent<'a>>;
 
@@ -33,6 +34,10 @@ fn meta_seq_number<'a>(input: &'a [u8]) -> MetaResult<'a> {
     let (remainder, _) = tag(&[0x00])(input)?;
     let (remainder, num) = take(1usize)(remainder)?;
     Ok((remainder, MetaEvent::SequenceNumber))
+}
+fn meta_port(input: &[u8]) -> MetaResult {
+    let (remainder, _) = tag([0x21, 0x01])(input)?;
+    map(take(1usize), MetaEvent::Port)(remainder)
 }
 fn meta_text(input: &[u8]) -> MetaResult {
     map(take_with_tag_len(&[0x01]), MetaEvent::Text)(input)
@@ -91,6 +96,7 @@ pub fn parse_meta_event<'a>(input: &'a [u8]) -> IResult<&[u8], MidiEvent> {
         meta_timesig,
         meta_keysig,
         meta_end_of_track,
+        meta_port,
     ))(remainder)?;
     Ok((remainder, MidiEvent::Meta((time, event))))
 }
