@@ -79,24 +79,25 @@ fn meta_end_of_track(input: &[u8]) -> MetaResult {
     value(MetaEvent::EndOfTrack, tag(&[0x2f, 0x00]))(input)
 }
 
-pub fn parse_meta_event<'a>(input: &'a [u8]) -> IResult<&[u8], MidiEvent> {
-    let (remainder, time) = variable_length_7(input)?;
-    let (remainder, tag) = tag([0xff])(remainder)?;
-    let (remainder, event) = alt((
-        meta_seq_number,
-        meta_text,
-        meta_copyright,
-        meta_name,
-        meta_seq_number,
-        meta_cue_point,
-        meta_lyric,
-        meta_marker,
-        meta_instrument,
-        meta_tempo,
-        meta_timesig,
-        meta_keysig,
-        meta_end_of_track,
-        meta_port,
-    ))(remainder)?;
-    Ok((remainder, MidiEvent::Meta((time, event))))
+pub fn parse_meta_event<'a>(time: u32) -> impl FnMut(&'a [u8]) -> IResult<&[u8], MidiEvent> {
+    move |input| {
+        let (remainder, tag) = tag([0xff])(input)?;
+        let (remainder, event) = alt((
+            meta_seq_number,
+            meta_text,
+            meta_copyright,
+            meta_name,
+            meta_seq_number,
+            meta_cue_point,
+            meta_lyric,
+            meta_marker,
+            meta_instrument,
+            meta_tempo,
+            meta_timesig,
+            meta_keysig,
+            meta_end_of_track,
+            meta_port,
+        ))(remainder)?;
+        Ok((remainder, MidiEvent::Meta((time, event))))
+    }
 }
