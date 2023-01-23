@@ -72,5 +72,5 @@ fn main() {
             }
         }
     }
-    println!("Tracks: {:x?}", tracks.len());
+    println!("Tracks: {}", tracks.len());
 }
