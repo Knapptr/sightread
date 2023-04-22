@@ -23,9 +23,9 @@ pub enum VoiceMessage {
     ControlChange(u8, u8),
     ProgramChange(u8),
     PolyAftertouch(u8, u8),
-    MonoAftertouch,
+    MonoAftertouch(u8),
     Other,
-    PitchBend,
+    PitchBend(u8, u8),
 }
 fn get_status(input: (&[u8], usize)) -> IResult<(&[u8], usize), (u8, u8)> {
     let (remainder, status_code): (_, u8) = nom::bits::complete::take(4usize)(input)?;
@@ -53,6 +53,13 @@ fn msg_after_poly(input: &[u8], channel: u8) -> IResult<&[u8], MidiMessage> {
         MidiMessage::create(channel, VoiceMessage::PolyAftertouch(note, pressure)),
     ))
 }
+fn msg_after_mono(input: &[u8], channel: u8) -> IResult<&[u8], MidiMessage> {
+    let (remainder, pressure) = be_u8(input)?;
+    Ok((
+        remainder,
+        MidiMessage::create(channel, VoiceMessage::MonoAftertouch(pressure)),
+    ))
+}
 fn msg_cc(input: &[u8], channel: u8) -> IResult<&[u8], MidiMessage> {
     let (remainder, (control_number, value)) = pair(be_u8, be_u8)(input)?;
     Ok((
@@ -65,6 +72,13 @@ fn msg_program_change(input: &[u8], channel: u8) -> IResult<&[u8], MidiMessage> 
     Ok((
         remainder,
         MidiMessage::create(channel, VoiceMessage::ProgramChange(program)),
+    ))
+}
+fn msg_pitch_bend(input: &[u8], channel: u8) -> IResult<&[u8], MidiMessage> {
+    let (remainder, (lsb_value, msb_value)) = pair(be_u8, be_u8)(input)?;
+    Ok((
+        remainder,
+        MidiMessage::create(channel, VoiceMessage::PitchBend(lsb_value, msb_value)),
     ))
 }
 pub fn parse_message<'a, 'b>(
@@ -82,7 +96,9 @@ pub fn parse_message<'a, 'b>(
                             VoiceMessage::ControlChange(_, _) => msg_cc(input, event.channel),
                             VoiceMessage::ProgramChange(_) => {
                                 msg_program_change(input, event.channel)
-                            }
+                            },
+                            VoiceMessage::PitchBend(_,_ ) => msg_pitch_bend(input, event.channel),
+                            VoiceMessage::PolyAftertouch(_,_ ) => msg_after_poly(input, event.channel)
                             _ => todo!(),
                         }?;
                         Ok((remainder, MidiEvent::Message(time, new_event)))
@@ -104,9 +120,11 @@ pub fn parse_message_event<'a>(input: &'a [u8], time: u32) -> IResult<&[u8], Mid
     let (remainder, event) = match status {
         0x8 => msg_note_off(remainder, channel),
         0x9 => msg_note_on(remainder, channel),
-        0xA => msg_after_poly(remainder, channel), // Poly After
+        0xA => msg_after_poly(remainder, channel), // Poly Aftertouch
         0xB => msg_cc(remainder, channel),         // CC
         0xC => msg_program_change(remainder, channel), // PG
+        0xD => msg_after_mono(remainder, channel),
+        0xE => msg_pitch_bend(remainder, channel),
         _ => unreachable!(),
     }?;
     Ok((remainder, MidiEvent::Message(time, event)))
