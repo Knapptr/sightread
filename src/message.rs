@@ -34,6 +34,12 @@ fn get_status(input: (&[u8], usize)) -> IResult<(&[u8], usize), (u8, u8)> {
 }
 fn msg_note_on(input: &[u8], channel: u8) -> IResult<&[u8], MidiMessage> {
     let (remainder, (note, velocity)) = pair(be_u8, be_u8)(input)?;
+    if velocity == 0 {
+        return Ok((
+            remainder,
+            MidiMessage::create(channel, VoiceMessage::NoteOff(note, velocity)),
+        ));
+    };
     Ok((
         remainder,
         MidiMessage::create(channel, VoiceMessage::NoteOn(note, velocity)),
@@ -96,9 +102,11 @@ pub fn parse_message<'a, 'b>(
                             VoiceMessage::ControlChange(_, _) => msg_cc(input, event.channel),
                             VoiceMessage::ProgramChange(_) => {
                                 msg_program_change(input, event.channel)
-                            },
-                            VoiceMessage::PitchBend(_,_ ) => msg_pitch_bend(input, event.channel),
-                            VoiceMessage::PolyAftertouch(_,_ ) => msg_after_poly(input, event.channel)
+                            }
+                            VoiceMessage::PitchBend(_, _) => msg_pitch_bend(input, event.channel),
+                            VoiceMessage::PolyAftertouch(_, _) => {
+                                msg_after_poly(input, event.channel)
+                            }
                             _ => todo!(),
                         }?;
                         Ok((remainder, MidiEvent::Message(time, new_event)))
