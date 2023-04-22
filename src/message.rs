@@ -107,7 +107,7 @@ pub fn parse_message<'a, 'b>(
                             VoiceMessage::PolyAftertouch(_, _) => {
                                 msg_after_poly(input, event.channel)
                             }
-                            _ => todo!(),
+                            _ => unreachable!(),
                         }?;
                         Ok((remainder, MidiEvent::Message(time, new_event)))
                     }
@@ -139,6 +139,24 @@ pub fn parse_message_event<'a>(input: &'a [u8], time: u32) -> IResult<&[u8], Mid
 }
 #[cfg(test)]
 #[test]
+fn parse_running_status_note_on() {
+    // note on, note on two notes simultanous
+    let note_on = &[0x90, 0x40, 0x40];
+    let running_note_on = &[0x42, 0xA0];
+    let (_, note) = parse_message_event(note_on, 0).unwrap();
+    let (_, running_note) = parse_message(0, Some(&note))(running_note_on).unwrap();
+    assert!(matches!(
+        running_note,
+        MidiEvent::Message(
+            0,
+            MidiMessage {
+                channel: 0,
+                message: VoiceMessage::NoteOn(66, 160)
+            }
+        )
+    ))
+}
+#[test]
 fn parse_noteon() {
     let notemsg = &[0x40, 0x40];
     assert!(matches!(
@@ -151,9 +169,10 @@ fn parse_noteon() {
 }
 #[test]
 fn parse_noteoff() {
-    let notemsg = &[0x80, 0x40, 0x40];
+    let notemsg = &[0x40, 0x40];
+    let (_, note_off) = msg_note_off(notemsg, 1).unwrap();
     assert!(matches!(
-        msg_note_off(notemsg, 1).unwrap().1,
+        note_off,
         MidiMessage {
             channel: 1,
             message: VoiceMessage::NoteOff(64, 64)
